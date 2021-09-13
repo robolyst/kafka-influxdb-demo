@@ -53,75 +53,34 @@ services:
         - zookeeper
         - broker
 
-  kafka-connect-01:
-    image: confluentinc/cp-kafka-connect:5.4.0
-    container_name: kafka-connect-01
+  telegraf:
+    image: telegraf:1.19.3
     depends_on:
       - broker
-      - schema-registry
-    ports:
-      - 8083:8083
-    environment:
-      CONNECT_LOG4J_APPENDER_STDOUT_LAYOUT_CONVERSIONPATTERN: "[%d] %p %X{connector.context}%m (%c:%L)%n"
-      CONNECT_CUB_KAFKA_TIMEOUT: 300
-      CONNECT_BOOTSTRAP_SERVERS: "broker:9092"
-      CONNECT_REST_ADVERTISED_HOST_NAME: 'kafka-connect-01'
-      CONNECT_REST_PORT: 8083
-      CONNECT_GROUP_ID: kafka-connect-group-01
-      CONNECT_CONFIG_STORAGE_TOPIC: _kafka-connect-group-01-configs
-      CONNECT_OFFSET_STORAGE_TOPIC: _kafka-connect-group-01-offsets
-      CONNECT_STATUS_STORAGE_TOPIC: _kafka-connect-group-01-status
-      CONNECT_KEY_CONVERTER: io.confluent.connect.avro.AvroConverter
-      CONNECT_KEY_CONVERTER_SCHEMA_REGISTRY_URL: "http://schema-registry:8081"
-      CONNECT_VALUE_CONVERTER: io.confluent.connect.avro.AvroConverter
-      CONNECT_VALUE_CONVERTER_SCHEMA_REGISTRY_URL: "http://schema-registry:8081"
-      CONNECT_INTERNAL_KEY_CONVERTER: 'org.apache.kafka.connect.json.JsonConverter'
-      CONNECT_INTERNAL_VALUE_CONVERTER: 'org.apache.kafka.connect.json.JsonConverter'
-      CONNECT_LOG4J_ROOT_LOGLEVEL: 'INFO'
-      CONNECT_LOG4J_LOGGERS: 'org.apache.kafka.connect.runtime.rest=WARN,org.reflections=ERROR'
-      CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR: '1'
-      CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR: '1'
-      CONNECT_STATUS_STORAGE_REPLICATION_FACTOR: '1'
-      CONNECT_PLUGIN_PATH: '/usr/share/java,/usr/share/confluent-hub-components/'
-      # External secrets config
-      # See https://docs.confluent.io/current/connect/security.html#externalizing-secrets
-      CONNECT_CONFIG_PROVIDERS: 'file'
-      CONNECT_CONFIG_PROVIDERS_FILE_CLASS: 'org.apache.kafka.common.config.provider.FileConfigProvider'
-    command: 
-      # In the command section, $ are replaced with $$ to avoid the error 'Invalid interpolation format for "command" option'
-      - bash 
-      - -c 
-      - |
-        echo "Installing connector plugins"
-        confluent-hub install --no-prompt confluentinc/kafka-connect-influxdb:1.1.2
-        #
-        echo "Launching Kafka Connect worker"
-        /etc/confluent/docker/run & 
-        #
-        echo "Waiting for Kafka Connect to start listening on $$CONNECT_REST_ADVERTISED_HOST_NAME:$$CONNECT_REST_PORT ⏳"
-        while : ; do
-          curl_status=$$(curl -s -o /dev/null -w %{http_code} http://$$CONNECT_REST_ADVERTISED_HOST_NAME:$$CONNECT_REST_PORT/connectors)
-          echo -e $$(date) " Kafka Connect listener HTTP state: " $$curl_status " (waiting for 200)"
-          if [ $$curl_status -eq 200 ] ; then
-            break
-          fi
-          sleep 5 
-        done
-        #
-        echo "Waiting for Schema Registry to start listening on schema-registry:8081 ⏳"
-        while [ $$(curl -s -o /dev/null -w %{http_code} http://schema-registry:8081) -eq 000 ] ; do 
-          echo -e $$(date) " Schema Registry listener HTTP state: " $$(curl -s -o /dev/null -w %{http_code} http://schema-registry:8081) " (waiting for != 000)"
-          sleep 5 
-        done
-        #      
-        sleep infinity
-
+      - influxdb
+    links:
+      - broker
+      - influxdb
+    restart: always
+    volumes:
+      - ./telegraf.conf:/etc/telegraf/telegraf.conf:ro
 
   influxdb:
-    image: influxdb:1.7.9
+    image: influxdb:2.0.8
     container_name: influxdb
     ports:
       - 8086:8086
+    environment:
+      DOCKER_INFLUXDB_INIT_MODE: setup
+      DOCKER_INFLUXDB_INIT_USERNAME: my-user
+      DOCKER_INFLUXDB_INIT_PASSWORD: my-password
+      DOCKER_INFLUXDB_INIT_ORG: my-org
+      DOCKER_INFLUXDB_INIT_BUCKET: my-bucket
+      DOCKER_INFLUXDB_INIT_RETENTION: 1w
+      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: my-super-secret-auth-token
+      V1_AUTH_USERNAME: my-user
+      V1_AUTH_PASSWORD: my-password
+      INFLUXDB_HTTP_AUTH_ENABLED: 'true'
 
   kafkacat:
     image: edenhill/kafkacat:1.5.0
