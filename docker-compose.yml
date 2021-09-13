@@ -76,11 +76,7 @@ services:
       DOCKER_INFLUXDB_INIT_PASSWORD: my-password
       DOCKER_INFLUXDB_INIT_ORG: my-org
       DOCKER_INFLUXDB_INIT_BUCKET: my-bucket
-      DOCKER_INFLUXDB_INIT_RETENTION: 1w
       DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: my-super-secret-auth-token
-      V1_AUTH_USERNAME: my-user
-      V1_AUTH_PASSWORD: my-password
-      INFLUXDB_HTTP_AUTH_ENABLED: 'true'
 
   kafkacat:
     image: edenhill/kafkacat:1.5.0
