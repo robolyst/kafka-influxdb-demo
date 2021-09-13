@@ -15,7 +15,7 @@ Wait for 30 seconds for the spew of logs to stop.
 
 ```
 docker exec -i kafkacat kafkacat -b broker:9092 -P -t telegraf <<EOF
-weather,location=us-midwest temperature=82
+{"metric": "weather", "location": "Sydney", "temperature": 27, "timestamp": "$(date +"%Y-%m-%dT%H:%M:%S%z")"}
 EOF
 ``` 
 
